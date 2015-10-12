@@ -9,7 +9,8 @@ scalaVersion := "2.11.6"
 libraryDependencies ++= Seq(
   javaJdbc,
   cache,
-  javaWs
+  javaWs,
+  "com.paypal.sdk" % "rest-api-sdk" % "1.2.0"
 )
 
 // Play provides two styles of routers, one expects its actions to be injected, the

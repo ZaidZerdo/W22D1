@@ -1,56 +1,5 @@
-@(planetList: List[Planet])
-
 @main("Welcome to Play") {
-    <table class="table table-bordered">
-        <thead>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Description</th>
-        </thead>
-
-        <tbody id="planet-table">
-            @for(planet <- planetList) {
-                <tr>
-                    <td>@planet.id</td>
-                    <td>@planet.name</td>
-                    <td>@planet.description</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-
-    <ul class="pagination">
-        <li><a class="page" href="#">1</a></li>
-        <li><a class="page" href="#">2</a></li>
-        <li><a class="page" href="#">3</a></li>
-    </ul>
-
-    <script>
-        $(document).ready(function() {
-            $(".page").click(function() {
-                console.log((this).innerHTML);
-
-                var page = (this).innerHTML;
-
-                $.ajax({
-                    method: "post",
-                    url: "@routes.Application.getPlanetList()",
-                    data: "page=" + page
-                }).success(function(response) {
-                    console.log(response);
-
-                    $("#planet-table").empty();
-
-                    for (var i = 0; i < response.length; i++) {
-                        $("#planet-table").append("<tr>");
-                        $("#planet-table").append("<td>" + response[i].id + "</td>");
-                        $("#planet-table").append("<td>" + response[i].name + "</td>");
-                        $("#planet-table").append("<td>" + response[i].description + "</td>");
-                        $("#planet-table").append("</tr>");
-                    }
-                })
-            })
-        })
-    </script>
-
+    <form method="post" onsubmit="@controllers.routes.Application.paypal()">
+        <input type="submit" id="paypal" value="Pay Pal"/>
+    </form>
 }

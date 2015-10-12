@@ -1,62 +1,86 @@
 package controllers;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import models.Planet;
-import play.*;
-import play.data.DynamicForm;
-import play.data.Form;
-import play.libs.Json;
-import play.mvc.*;
+import com.paypal.api.payments.*;
+import com.paypal.base.rest.APIContext;
+import com.paypal.base.rest.OAuthTokenCredential;
+import com.paypal.base.rest.PayPalRESTException;
 
-import views.html.*;
+import play.Logger;
+import play.Play;
+import play.mvc.Controller;
+import play.mvc.Result;
+import views.html.index;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
+import java.util.Iterator;
 
 public class Application extends Controller {
 
-    private static List<Planet> planetList = new ArrayList<>();
-
-    static {
-        planetList.add(new Planet(1L, "Mercury", "At night it can be a few hundred degrees below zero."));
-        planetList.add(new Planet(2L, "Venus", "Has extreme temperatures, volcanoes and earthquakes."));
-        planetList.add(new Planet(3L, "Earth", "The only planet that has Bitcamp."));
-        planetList.add(new Planet(4L, "Mars", "Will be ours one day."));
-        planetList.add(new Planet(5L, "Jupiter", "Big brother"));
-        planetList.add(new Planet(6L, "Saturn", "Gotta love those rings."));
-        planetList.add(new Planet(7L, "Uranus", "Only its name is interesting."));
-        planetList.add(new Planet(8L, "Neptune", "The last planet of the SS."));
-        planetList.add(new Planet(9L, "Alpha Centauri Bb", "Closest exoplanet"));
-        planetList.add(new Planet(10L, "Fomalhaut b", "First to be observed."));
-    }
-
     public Result index() {
-        return ok(index.render(planetList.subList(0, 4)));
+        return ok(index.render());
     }
 
-    public Result getPlanetList() {
-        DynamicForm form = Form.form().bindFromRequest();
-
-        int page = 1;
+    public Result paypal() {
         try {
-            page = Integer.parseInt(form.data().get("page"));
-        } catch (NumberFormatException ex) {
-            Logger.error("Could not parse input.");
-            return badRequest();
+            // Configuration
+            String clientid = Play.application().configuration().getString("clientid");
+            String secret = Play.application().configuration().getString("secret");
+
+            String token = new OAuthTokenCredential(clientid, secret).getAccessToken();
+
+            Map<String, String> config = new HashMap<>();
+            config.put("mode", "sandbox");
+
+            APIContext context = new APIContext(token);
+            context.setConfigurationMap(config);
+
+            // Process cart/payment information
+            double price = 1000;
+            String priceString = String.format("%1.2f", price);
+            String desc = "Bought: Bijela Voda\nTID: 01454972\nAmount: " + priceString;
+
+            // Configure payment
+            Amount amount = new Amount();
+            amount.setTotal(priceString);
+            amount.setCurrency("USD");
+
+            List<Transaction> transactionList = new ArrayList<>();
+            Transaction transaction = new Transaction();
+            transaction.setAmount(amount);
+            transaction.setDescription(desc);
+            transactionList.add(transaction);
+
+            Payer payer = new Payer();
+            payer.setPaymentMethod("paypal");
+
+            Payment payment = new Payment();
+            payment.setPayer(payer);
+            payment.setIntent("sale");
+            payment.setTransactions(transactionList);
+
+            RedirectUrls redirects = new RedirectUrls();
+            // Note: Dvije ruute ispod nisu napravljene!
+            redirects.setCancelUrl("http://localhost:9000/payment/fail");
+            redirects.setReturnUrl("http://localhost:9000/payment/approved");
+            payment.setRedirectUrls(redirects);
+
+            Payment madePayments = payment.create(context);
+            Iterator<Links> it = madePayments.getLinks().iterator();
+            while(it.hasNext()) {
+                Links link = it.next();
+                if(link.getRel().equals("approval_url")) {
+                    return redirect(link.getHref());
+                }
+            }
+        } catch(PayPalRESTException e){
+            Logger.warn("PayPal Exception");
+            e.printStackTrace();
         }
 
-        int startIndex = (page - 1) * 4;
-        int endIndex = startIndex + 4;
-
-        if (endIndex >= planetList.size()) {
-            endIndex = planetList.size();
-        }
-
-        List<Planet> wantedList = planetList.subList(startIndex, endIndex);
-
-        JsonNode object = Json.toJson(wantedList);
-
-        return ok(object);
+        return redirect("/");
     }
 
 }
